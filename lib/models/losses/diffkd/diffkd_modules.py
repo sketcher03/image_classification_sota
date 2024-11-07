@@ -1,10 +1,24 @@
 import torch
 import torch.nn as nn
-
+import torch.nn.functional as F
 
 class NoiseAdapter(nn.Module):
-    def __init__(self, channels, kernel_size=3):
+    def __init__(self, channels, kernel_size=3, weight_attention=1.0):
         super().__init__()
+        
+        # Store the weight for attention scaling
+        self.weight_attention = weight_attention
+
+        # Define the spatial attention mechanism
+        self.spatial_attention = nn.Sequential(
+            nn.Conv2d(channels, channels // 8, kernel_size=1),
+            nn.BatchNorm2d(channels // 8),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channels // 8, 1, kernel_size=1),
+            nn.Sigmoid()
+        )
+        
+        # Existing feature extraction mechanism
         if kernel_size == 3:
             self.feat = nn.Sequential(
                 Bottleneck(channels, channels, reduction=8),
@@ -18,9 +32,16 @@ class NoiseAdapter(nn.Module):
                 nn.Conv2d(channels * 2, channels, 1),
                 nn.BatchNorm2d(channels),
             )
+        
+        # Prediction layer
         self.pred = nn.Linear(channels, 2)
 
     def forward(self, x):
+        # Apply spatial attention to the input feature map
+        attention_weights = self.spatial_attention(x)
+        x = x * (attention_weights * self.weight_attention)  # Scale attention map with weight_attention
+        
+        # Pass through existing feature extraction and prediction layers
         x = self.feat(x).flatten(1)
         x = self.pred(x).softmax(1)[:, 0]
         return x

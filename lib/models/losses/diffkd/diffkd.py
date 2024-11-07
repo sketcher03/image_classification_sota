@@ -15,8 +15,10 @@ class DiffKD(nn.Module):
             num_train_timesteps=1000,
             use_ae=False,
             ae_channels=None,
+            weight_attention=1.0
     ):
         super().__init__()
+        self.noise_adapter = NoiseAdapter(teacher_channels, kernel_size, weight_attention)
         self.use_ae = use_ae
         self.diffusion_inference_steps = inference_steps
         # AE for compress teacher feature
