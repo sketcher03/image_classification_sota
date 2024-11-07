@@ -6,7 +6,7 @@ decay_by_epoch: True
 decay_epochs: 30
 decay_rate: 0.1
 drop: 0.0
-epochs: 10
+epochs: 50
 log_interval: 50
 lr: 0.1
 min_lr: 1.0e-05
