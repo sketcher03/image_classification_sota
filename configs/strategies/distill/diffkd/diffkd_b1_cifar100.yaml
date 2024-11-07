@@ -1,4 +1,4 @@
-dataset: cifar10
+dataset: cifar100
 aa: null
 batch_size: 32
 color_jitter: 0.0
