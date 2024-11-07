@@ -1,4 +1,3 @@
-dataset: cifar10
 aa: null
 batch_size: 32
 color_jitter: 0.0
@@ -35,4 +34,3 @@ kd_loss_kwargs:
   use_ae: True
   ae_channels: 1024
   tau: 1
-  weight_attention: 0.5
