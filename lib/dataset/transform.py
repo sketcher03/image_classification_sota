@@ -10,6 +10,15 @@ IMAGENET_DEFAULT_STD = (0.229, 0.224, 0.225)
 CIFAR_DEFAULT_MEAN = (0.49139968, 0.48215827, 0.44653124)
 CIFAR_DEFAULT_STD = (0.24703233, 0.24348505, 0.26158768)
 
+CALTECH_DEFAULT_MEAN = (0.485, 0.456, 0.406)
+CALTECH_DEFAULT_STD = (0.229, 0.224, 0.225)
+
+STL10_DEFAULT_MEAN = (0.4467, 0.4398, 0.4066)
+STL10_DEFAULT_STD = (0.2603, 0.2566, 0.2713)
+
+STANFORDCARS_DEFAULT_MEAN = (0.485, 0.456, 0.406)
+STANFORDCARS_DEFAULT_STD = (0.229, 0.224, 0.225)
+
 
 def build_train_transforms(aa_config_str="rand-m9-mstd0.5", color_jitter=None, 
                            reprob=0., remode='pixel', interpolation='bilinear', mean=None, std=None):
@@ -98,5 +107,79 @@ def build_val_transforms_cifar10(mean=None, std=None):
               ])
     return trans_l, trans_r
 
+def build_train_transforms_caltech256(mean=None, std=None):
+    mean = CALTECH_DEFAULT_MEAN if mean is None else mean
+    std = CALTECH_DEFAULT_STD if std is None else std
+    trans_l = transforms.Compose([
+        transforms.RandomResizedCrop(224),
+        transforms.RandomHorizontalFlip(),
+        augment_ops.ToNumpy()
+    ])
+    trans_r = transforms.Compose([
+        augment_ops.Normalize(mean=[x * 255 for x in mean], std=[x * 255 for x in std])
+    ])
+    return trans_l, trans_r
 
+def build_val_transforms_caltech256(mean=None, std=None):
+    mean = CALTECH_DEFAULT_MEAN if mean is None else mean
+    std = CALTECH_DEFAULT_STD if std is None else std
+    trans_l = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        augment_ops.ToNumpy()
+    ])
+    trans_r = transforms.Compose([
+        augment_ops.Normalize(mean=[x * 255 for x in mean], std=[x * 255 for x in std])
+    ])
+    return trans_l, trans_r
+
+def build_train_transforms_stl10(mean=None, std=None):
+    mean = STL10_DEFAULT_MEAN if mean is None else mean
+    std = STL10_DEFAULT_STD if std is None else std
+    trans_l = transforms.Compose([
+        transforms.RandomCrop(96, padding=4),
+        transforms.RandomHorizontalFlip(),
+        augment_ops.ToNumpy()
+    ])
+    trans_r = transforms.Compose([
+        augment_ops.Normalize(mean=[x * 255 for x in mean], std=[x * 255 for x in std])
+    ])
+    return trans_l, trans_r
+
+def build_val_transforms_stl10(mean=None, std=None):
+    mean = STL10_DEFAULT_MEAN if mean is None else mean
+    std = STL10_DEFAULT_STD if std is None else std
+    trans_l = transforms.Compose([
+        augment_ops.ToNumpy()
+    ])
+    trans_r = transforms.Compose([
+        augment_ops.Normalize(mean=[x * 255 for x in mean], std=[x * 255 for x in std])
+    ])
+    return trans_l, trans_r
+
+def build_train_transforms_stanfordcars(mean=None, std=None):
+    mean = STANFORDCARS_DEFAULT_MEAN if mean is None else mean
+    std = STANFORDCARS_DEFAULT_STD if std is None else std
+    trans_l = transforms.Compose([
+        transforms.RandomResizedCrop(224),
+        transforms.RandomHorizontalFlip(),
+        augment_ops.ToNumpy()
+    ])
+    trans_r = transforms.Compose([
+        augment_ops.Normalize(mean=[x * 255 for x in mean], std=[x * 255 for x in std])
+    ])
+    return trans_l, trans_r
+
+def build_val_transforms_stanfordcars(mean=None, std=None):
+    mean = STANFORDCARS_DEFAULT_MEAN if mean is None else mean
+    std = STANFORDCARS_DEFAULT_STD if std is None else std
+    trans_l = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        augment_ops.ToNumpy()
+    ])
+    trans_r = transforms.Compose([
+        augment_ops.Normalize(mean=[x * 255 for x in mean], std=[x * 255 for x in std])
+    ])
+    return trans_l, trans_r
 

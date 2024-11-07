@@ -49,6 +49,18 @@ def build_dataloader(args):
         args.data_path = 'data/cifar' if args.data_path == '' else args.data_path
         args.num_classes = 100
         args.input_shape = (3, 32, 32)
+    elif args.dataset == 'stl10':
+        args.data_path = 'data/stl10' if args.data_path == '' else args.data_path
+        args.num_classes = 10
+        args.input_shape = (3, 96, 96)
+    elif args.dataset == 'caltech256':
+        args.data_path = 'data/caltech256' if args.data_path == '' else args.data_path
+        args.num_classes = 256
+        args.input_shape = (3, 224, 224)
+    elif args.dataset == 'stanfordcars':
+        args.data_path = 'data/stanfordcars' if args.data_path == '' else args.data_path
+        args.num_classes = 196
+        args.input_shape = (3, 224, 224)
 
     # train
     if args.dataset == 'imagenet':
@@ -66,6 +78,21 @@ def build_dataloader(args):
             args.cutout_length, args.image_mean, args.image_std)
         train_dataset = datasets.CIFAR100(
             root=args.data_path, train=True, download=True, transform=train_transforms_l)
+    elif args.dataset == 'stl10':
+        train_transforms_l, train_transforms_r = transform.build_train_transforms_stl10(
+            args.image_mean, args.image_std)
+        train_dataset = datasets.STL10(
+            root=args.data_path, split='train', download=True, transform=train_transforms_l)
+    elif args.dataset == 'caltech256':
+        train_transforms_l, train_transforms_r = transform.build_train_transforms_caltech256(
+            args.image_mean, args.image_std)
+        train_dataset = datasets.Caltech256(
+            root=args.data_path, download=True, transform=train_transforms_l)
+    elif args.dataset == 'stanfordcars':
+        train_transforms_l, train_transforms_r = transform.build_train_transforms_stanfordcars(
+            args.image_mean, args.image_std)
+        train_dataset = datasets.StanfordCars(
+            root=args.data_path, split='train', download=True, transform=train_transforms_l)
 
     # mixup
     mixup_active = args.mixup > 0. or args.cutmix > 0. or args.cutmix_minmax is not None
@@ -91,6 +118,15 @@ def build_dataloader(args):
     elif args.dataset == 'cifar100':
         val_transforms_l, val_transforms_r = transform.build_val_transforms_cifar10(args.image_mean, args.image_std)
         val_dataset = datasets.CIFAR100(root=args.data_path, train=False, download=True, transform=val_transforms_l)
+    elif args.dataset == 'stl10':
+        val_transforms_l, val_transforms_r = transform.build_val_transforms_stl10(args.image_mean, args.image_std)
+        val_dataset = datasets.STL10(root=args.data_path, split='test', download=True, transform=val_transforms_l)
+    elif args.dataset == 'caltech256':
+        val_transforms_l, val_transforms_r = transform.build_val_transforms_caltech256(args.image_mean, args.image_std)
+        val_dataset = datasets.Caltech256(root=args.data_path, download=True, transform=val_transforms_l)
+    elif args.dataset == 'stanfordcars':
+        val_transforms_l, val_transforms_r = transform.build_val_transforms_stanfordcars(args.image_mean, args.image_std)
+        val_dataset = datasets.StanfordCars(root=args.data_path, split='test', download=True, transform=val_transforms_l)
 
     val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset, shuffle=False)
     val_loader = torch.utils.data.DataLoader(
