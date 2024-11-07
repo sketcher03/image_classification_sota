@@ -61,6 +61,10 @@ def build_dataloader(args):
         args.data_path = 'data/stanfordcars' if args.data_path == '' else args.data_path
         args.num_classes = 196
         args.input_shape = (3, 224, 224)
+    elif args.dataset == 'flowers102':
+        args.data_path = 'data/flowers102' if args.data_path == '' else args.data_path
+        args.num_classes = 102
+        args.input_shape = (3, 224, 224)
 
     # train
     if args.dataset == 'imagenet':
@@ -93,6 +97,11 @@ def build_dataloader(args):
             args.image_mean, args.image_std)
         train_dataset = datasets.StanfordCars(
             root=args.data_path, split='train', download=True, transform=train_transforms_l)
+    elif args.dataset == 'flowers102':
+        train_transforms_l, train_transforms_r = transform.build_train_transforms_flowers102(args.image_mean, args.image_std)
+        train_dataset = datasets.Flowers102(
+            root=args.data_path, split='train', download=True, transform=train_transforms_l
+        )
 
     # mixup
     mixup_active = args.mixup > 0. or args.cutmix > 0. or args.cutmix_minmax is not None
@@ -127,6 +136,11 @@ def build_dataloader(args):
     elif args.dataset == 'stanfordcars':
         val_transforms_l, val_transforms_r = transform.build_val_transforms_stanfordcars(args.image_mean, args.image_std)
         val_dataset = datasets.StanfordCars(root=args.data_path, split='test', download=True, transform=val_transforms_l)
+    elif args.dataset == 'flowers102':
+        val_transforms_l, val_transforms_r = transform.build_val_transforms_flowers102(args.image_mean, args.image_std)
+        val_dataset = datasets.Flowers102(
+            root=args.data_path, split='val', download=True, transform=val_transforms_l
+        )
 
     val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset, shuffle=False)
     val_loader = torch.utils.data.DataLoader(
