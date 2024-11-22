@@ -46,7 +46,39 @@ class NoiseAdapter(nn.Module):
         x = self.pred(x).softmax(1)[:, 0]
         return x
 
-    
+
+class DualAttention(nn.Module):
+    """
+    Dual Attention module applies spatial and channel attention mechanisms to a feature map.
+    """
+
+    def __init__(self, channels, reduction=8):
+        super(DualAttention, self).__init__()
+        # Spatial Attention
+        self.spatial_attention = nn.Conv2d(1, 1, kernel_size=7, padding=3, bias=False)
+
+        # Channel Attention
+        self.channel_attention = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Linear(channels, channels // reduction, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Linear(channels // reduction, channels, bias=False),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x):
+        # Channel Attention
+        b, c, h, w = x.size()
+        channel_weights = self.channel_attention(x.view(b, c, -1).mean(dim=2)).view(b, c, 1, 1)
+        x = x * channel_weights
+
+        # Spatial Attention
+        spatial_weights = self.spatial_attention(x.mean(dim=1, keepdim=True)).sigmoid()
+        x = x * spatial_weights
+
+        return x
+
+
 class DiffusionModel(nn.Module):
     def __init__(self, channels_in, kernel_size=3):
         super().__init__()
@@ -156,7 +188,7 @@ class DDIMPipeline:
 
 
 class Bottleneck(nn.Module):
-    def __init__(self, in_channels, out_channels, reduction=4):
+    def __init__(self, in_channels, out_channels, reduction=8):
         super().__init__()
         self.block = nn.Sequential(
             nn.Conv2d(in_channels, in_channels // reduction, 1),
@@ -170,5 +202,6 @@ class Bottleneck(nn.Module):
         )
 
     def forward(self, x):
+        identity = x
         out = self.block(x)
-        return out + x
+        return out + identity

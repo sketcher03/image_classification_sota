@@ -223,16 +223,19 @@ class ResNet(nn.Module):
         x = self.relu(x)
         x = self.maxpool(x)
 
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
 
-        x = self.avgpool(x)
+        layer1_out = self.layer1(x)
+        layer2_out = self.layer2(layer1_out)
+        layer3_out = self.layer3(layer2_out)
+        layer4_out = self.layer4(layer3_out)
+
+        # Final logits
+        x = self.avgpool(layer4_out)
         x = torch.flatten(x, 1)
         x = self.fc(x)
 
-        return x
+        # Return intermediate features and logits
+        return [layer1_out, layer2_out, layer3_out], x
 
     def forward(self, x: Tensor) -> Tensor:
         return self._forward_impl(x)

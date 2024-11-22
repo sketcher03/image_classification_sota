@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from .diffkd_modules import DiffusionModel, NoiseAdapter, AutoEncoder, DDIMPipeline
+from .diffkd_modules import DiffusionModel, NoiseAdapter, AutoEncoder, DDIMPipeline, DualAttention
 from .scheduling_ddim import DDIMScheduler
 
 
@@ -33,7 +33,10 @@ class DiffKD(nn.Module):
         # diffusion model - predict noise
         self.model = DiffusionModel(channels_in=teacher_channels, kernel_size=kernel_size)
         self.scheduler = DDIMScheduler(num_train_timesteps=num_train_timesteps, clip_sample=False, beta_schedule="linear")
-        self.noise_adapter = NoiseAdapter(teacher_channels, kernel_size)
+
+        # DualAttention for feature alignment
+        self.dual_attention = DualAttention(teacher_channels)
+
         # pipeline for denoising student feature
         self.pipeline = DDIMPipeline(self.model, self.scheduler, self.noise_adapter)
         self.proj = nn.Sequential(nn.Conv2d(teacher_channels, teacher_channels, 1), nn.BatchNorm2d(teacher_channels))
@@ -42,6 +45,20 @@ class DiffKD(nn.Module):
         # project student feature to the same dimension as teacher feature
         student_feat = self.trans(student_feat)
 
+        """
+        Forward pass for DiffKD with feature and logits distillation.
+
+        Args:
+            teacher_feat: Features from the teacher model.
+            student_feat: Features from the student model.
+
+        Returns:
+            refined_feat: Denoised student features
+            teacher_feat: Processed teacher features
+            ddim_loss: Loss for training the diffusion model
+            rec_loss: Reconstruction loss for the autoencoder (if used)
+        """
+
         # use autoencoder on teacher feature
         if self.use_ae:
             hidden_t_feat, rec_t_feat = self.ae(teacher_feat)
@@ -49,6 +66,10 @@ class DiffKD(nn.Module):
             teacher_feat = hidden_t_feat.detach()
         else:
             rec_loss = None
+
+        # Apply DualAttention for feature enhancement
+        teacher_feat = self.dual_attention(teacher_feat)
+        student_feat = self.dual_attention(student_feat)
 
         # denoise student feature
         refined_feat = self.pipeline(

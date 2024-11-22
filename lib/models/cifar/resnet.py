@@ -182,12 +182,13 @@ class ResNet(nn.Module):
         f0 = x
 
         x, f1_pre = self.layer1(x)  # 32x32
-        f1 = x
+        layer1_out = x
         x, f2_pre = self.layer2(x)  # 16x16
-        f2 = x
+        layer2_out = x
         x, f3_pre = self.layer3(x)  # 8x8
-        f3 = x
+        layer3_out = x
 
+        # Final logits
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         f4 = x
@@ -197,7 +198,7 @@ class ResNet(nn.Module):
             if preact:
                 return [f0, f1_pre, f2_pre, f3_pre, f4], x
             else:
-                return [f0, f1, f2, f3, f4], x
+                return [f0, layer1_out, layer2_out, layer3_out, f4], x
         else:
             return x
 
