@@ -54,15 +54,20 @@ class DualAttention(nn.Module):
 
     def __init__(self, channels, reduction=8):
         super(DualAttention, self).__init__()
-        # Spatial Attention
-        self.spatial_attention = nn.Conv2d(1, 1, kernel_size=7, padding=3, bias=False)
+        
 
         # Channel Attention
         self.channel_attention = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
+            # nn.AdaptiveAvgPool2d(1),
             nn.Linear(channels, channels // reduction, bias=False),
             nn.ReLU(inplace=True),
             nn.Linear(channels // reduction, channels, bias=False),
+            nn.Sigmoid(),
+        )
+
+        # Spatial Attention
+        self.spatial_attention = nn.Sequential(
+            nn.Conv2d(1, 1, kernel_size=7, padding=3, bias=False),
             nn.Sigmoid(),
         )
 
@@ -73,7 +78,7 @@ class DualAttention(nn.Module):
         x = x * channel_weights
 
         # Spatial Attention
-        spatial_weights = self.spatial_attention(x.mean(dim=1, keepdim=True)).sigmoid()
+        spatial_weights = self.spatial_attention(x.mean(dim=1, keepdim=True))
         x = x * spatial_weights
 
         return x
