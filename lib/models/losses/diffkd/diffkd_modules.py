@@ -9,6 +9,9 @@ class NoiseAdapter(nn.Module):
         # Store the weight for attention scaling
         self.weight_attention = weight_attention
 
+        self.spatial_attention = None
+
+        '''
         # Define the spatial attention mechanism
         self.spatial_attention = nn.Sequential(
             nn.Conv2d(channels, channels // 8, kernel_size=1),
@@ -17,6 +20,7 @@ class NoiseAdapter(nn.Module):
             nn.Conv2d(channels // 8, 1, kernel_size=1),
             nn.Sigmoid()
         )
+        '''
         
         # Existing feature extraction mechanism
         if kernel_size == 3:
@@ -41,15 +45,23 @@ class NoiseAdapter(nn.Module):
         # Channel Attention
         b, c, h, w = x.size()
 
-        # Dynamically update spatial attention if needed
-        if self.spatial_attention[0].in_channels != c:
-            self.spatial_attention[0] = nn.Conv2d(c, c // 8, kernel_size=1).to(x.device)
-            self.spatial_attention[0] = nn.BatchNorm2d(c // 8).to(x.device)
-            self.spatial_attention[0] = nn.Conv2d(c // 8, 1, kernel_size=1).to(x.device)
+        # Dynamically initialize spatial attention if not already set
+        if self.spatial_attention is None or self.spatial_attention[0].in_channels != c:
+            print(f"Initializing/Updating Spatial Attention for {c} channels")
+            self.spatial_attention = nn.Sequential(
+                nn.Conv2d(c, c // 8, kernel_size=1, bias=False),  # Reduce channels
+                nn.BatchNorm2d(c // 8),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(c // 8, 1, kernel_size=1, bias=False),  # Map to single channel
+                nn.Sigmoid()
+            ).to(x.device)
 
         # Apply spatial attention
         attention_weights = self.spatial_attention(x)
         x = x * (attention_weights * self.weight_attention)  # Scale attention map with weight_attention
+
+        print(f"Input Shape: {x.shape}")
+        print(f"Spatial Attention Weights Shape: {attention_weights.shape}")
         
         # Pass through existing feature extraction and prediction layers
         x = self.feat(x).flatten(1)
