@@ -9,8 +9,6 @@ class NoiseAdapter(nn.Module):
         # Store the weight for attention scaling
         self.weight_attention = weight_attention
 
-        self.spatial_attention = None
-
         '''
         # Define the spatial attention mechanism
         self.spatial_attention = nn.Sequential(
@@ -20,7 +18,6 @@ class NoiseAdapter(nn.Module):
             nn.Conv2d(channels // 8, 1, kernel_size=1),
             nn.Sigmoid()
         )
-        '''
         
         # Existing feature extraction mechanism
         if kernel_size == 3:
@@ -36,18 +33,43 @@ class NoiseAdapter(nn.Module):
                 nn.Conv2d(channels * 2, channels, 1),
                 nn.BatchNorm2d(channels),
             )
+
+        '''
         
         # Prediction layer
         self.pred = nn.Linear(channels, 2)
+        self.kernel_size = kernel_size
+        self.spatial_attention = None  # To be initialized dynamically
+        self.feat = None  # Feature extraction module (dynamic)
+        self.pred = None  # Prediction head (dynamic)
+
+    def _initialize_feat(self, channels, device):
+        """Dynamically initialize or update the feature extraction module."""
+        # print(f"Reinitializing feat for {channels} channels with kernel_size={self.kernel_size}")
+        if self.kernel_size == 3:
+            self.feat = nn.Sequential(
+                Bottleneck(channels, channels, reduction=8),
+                nn.AdaptiveAvgPool2d(1)
+            ).to(device)
+        else:
+            self.feat = nn.Sequential(
+                nn.Conv2d(channels, channels * 2, 1),
+                nn.BatchNorm2d(channels * 2),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(channels * 2, channels, 1),
+                nn.BatchNorm2d(channels),
+            ).to(device)
 
     def forward(self, x):
+
+        # print(f"self.feat before reinitialization: {self.feat}")
 
         # Channel Attention
         b, c, h, w = x.size()
 
         # Dynamically initialize spatial attention if not already set
         if self.spatial_attention is None or self.spatial_attention[0].in_channels != c:
-            print(f"Initializing/Updating Spatial Attention for {c} channels")
+            # print(f"Initializing/Updating Spatial Attention for {c} channels")
             self.spatial_attention = nn.Sequential(
                 nn.Conv2d(c, c // 8, kernel_size=1, bias=False),  # Reduce channels
                 nn.BatchNorm2d(c // 8),
@@ -56,17 +78,33 @@ class NoiseAdapter(nn.Module):
                 nn.Sigmoid()
             ).to(x.device)
 
+        # print(f"self.feat before reinitialization: {self.feat}")
+
+        # Dynamically initialize feature extraction module (self.feat)
+        if self.feat is None or (
+            isinstance(self.feat[0], nn.Conv2d) and self.feat[0].in_channels != c
+        ):
+            self._initialize_feat(c, x.device)
+
+        # print(f"self.feat after reinitialization: {self.feat}")
+
+        # Dynamically initialize prediction head
+        if self.pred is None or self.pred.in_features != c:
+            # print(f"Initializing Prediction Head for {c} channels")
+            self.pred = nn.Linear(c, 2).to(x.device)
+
         # Apply spatial attention
         attention_weights = self.spatial_attention(x)
         x = x * (attention_weights * self.weight_attention)  # Scale attention map with weight_attention
 
-        print(f"Input Shape: {x.shape}")
-        print(f"Spatial Attention Weights Shape: {attention_weights.shape}")
+        # print(f"Input Shape: {x.shape}")
+        # print(f"Spatial Attention Weights Shape: {attention_weights.shape}")
         
         # Pass through existing feature extraction and prediction layers
         x = self.feat(x).flatten(1)
         x = self.pred(x).softmax(1)[:, 0]
         return x
+
 
 
 class DualAttention(nn.Module):
