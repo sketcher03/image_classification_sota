@@ -2,6 +2,22 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+class DiffusionTimestepScheduler:
+    """
+    Scheduler to progressively adjust diffusion timesteps during training.
+    """
+    def __init__(self, T_min, T_max, total_epochs):
+        self.T_min = T_min
+        self.T_max = T_max
+        self.total_epochs = total_epochs
+
+    def get_timesteps(self, epoch):
+        """
+        Calculate the number of timesteps for the current epoch.
+        """
+        return int(self.T_min + (self.T_max - self.T_min) * (epoch / self.total_epochs))
+    
+
 class NoiseAdapter(nn.Module):
     def __init__(self, channels, kernel_size=3, weight_attention=1.0):
         super().__init__()

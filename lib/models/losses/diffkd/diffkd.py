@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from .diffkd_modules import DiffusionModel, NoiseAdapter, AutoEncoder, DDIMPipeline, DualAttention
+from .diffkd_modules import DiffusionModel, NoiseAdapter, AutoEncoder, DDIMPipeline, DualAttention, DiffusionTimestepScheduler
 from .scheduling_ddim import DDIMScheduler
 
 
@@ -15,10 +15,13 @@ class DiffKD(nn.Module):
             num_train_timesteps=1000,
             use_ae=False,
             ae_channels=None,
-            weight_attention=1.0
+            weight_attention=1.0,
+            T_min=5,
+            T_max=50,
+            total_epochs=100
     ):
         super().__init__()
-        self.noise_adapter = NoiseAdapter(teacher_channels, kernel_size, weight_attention)
+        
         self.use_ae = use_ae
         self.diffusion_inference_steps = inference_steps
         # AE for compress teacher feature
@@ -28,6 +31,11 @@ class DiffKD(nn.Module):
             self.ae = AutoEncoder(teacher_channels, ae_channels)
             teacher_channels = ae_channels
         
+        # Initialize scheduler for timesteps
+        self.diff_scheduler = DiffusionTimestepScheduler(T_min, T_max, total_epochs)
+        
+        self.noise_adapter = NoiseAdapter(teacher_channels, kernel_size, weight_attention)
+
         # transform student feature to the same dimension as teacher
         self.trans = nn.Conv2d(student_channels, teacher_channels, 1)
         # diffusion model - predict noise
@@ -41,12 +49,17 @@ class DiffKD(nn.Module):
         self.pipeline = DDIMPipeline(self.model, self.scheduler, self.noise_adapter)
         self.proj = nn.Sequential(nn.Conv2d(teacher_channels, teacher_channels, 1), nn.BatchNorm2d(teacher_channels))
 
-    def forward(self, student_feat, teacher_feat):
+    def forward(self, student_feat, teacher_feat, epoch):
+
+        # Dynamically adjust diffusion timesteps
+        num_inference_steps = self.diff_scheduler.get_timesteps(epoch)
+        # print(f"Epoch {epoch}: Using {num_inference_steps} timesteps for diffusion.")
+        
         # project student feature to the same dimension as teacher feature
         student_feat = self.trans(student_feat)
 
         """
-        Forward pass for DiffKD with feature and logits distillation.
+        Forward pass for DiffKD with feature and logits distillation and progressive timestep adjustment.
 
         Args:
             teacher_feat: Features from the teacher model.
@@ -78,7 +91,7 @@ class DiffKD(nn.Module):
             dtype=student_feat.dtype,
             shape=student_feat.shape[1:],
             feat=student_feat,
-            num_inference_steps=self.diffusion_inference_steps,
+            num_inference_steps=num_inference_steps,
             proj=self.proj
         )
         refined_feat = self.proj(refined_feat)

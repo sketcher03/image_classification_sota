@@ -120,7 +120,7 @@ class KDLoss():
         teacher.eval()
         self._iter = 0
 
-    def __call__(self, x, targets):
+    def __call__(self, x, targets, epoch):
         with torch.no_grad():
             t_logits = self.teacher(x)
 
@@ -135,7 +135,7 @@ class KDLoss():
             # transform student feature
             if self.kd_method == 'diffkd':
                 self._student_out[sm], self._teacher_out[tm], diff_loss, ae_loss = \
-                    self.diff[tm](self._reshape_BCHW(self._student_out[sm]), self._reshape_BCHW(self._teacher_out[tm]))
+                    self.diff[tm](self._reshape_BCHW(self._student_out[sm]), self._reshape_BCHW(self._teacher_out[tm]), epoch)
             if hasattr(self, 'align'):
                 self._student_out[sm] = self.align(self._student_out[sm])
 

@@ -289,7 +289,7 @@ def train_epoch(args,
                 output = model(input)
                 loss = loss_fn(output, target)
             else:
-                loss = loss_fn(input, target)
+                loss = loss_fn(input, target, epoch=epoch)
     
             if auxiliary_buffer is not None:
                 loss_aux = loss_fn(auxiliary_buffer.output, target)
