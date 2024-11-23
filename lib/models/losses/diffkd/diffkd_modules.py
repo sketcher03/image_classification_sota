@@ -37,7 +37,17 @@ class NoiseAdapter(nn.Module):
         self.pred = nn.Linear(channels, 2)
 
     def forward(self, x):
-        # Apply spatial attention to the input feature map
+
+        # Channel Attention
+        b, c, h, w = x.size()
+
+        # Dynamically update spatial attention if needed
+        if self.spatial_attention[0].in_channels != c:
+            self.spatial_attention[0] = nn.Conv2d(c, c // 8, kernel_size=1).to(x.device)
+            self.spatial_attention[0] = nn.BatchNorm2d(c // 8).to(x.device)
+            self.spatial_attention[0] = nn.Conv2d(c // 8, 1, kernel_size=1).to(x.device)
+
+        # Apply spatial attention
         attention_weights = self.spatial_attention(x)
         x = x * (attention_weights * self.weight_attention)  # Scale attention map with weight_attention
         
